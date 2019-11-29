@@ -1,0 +1,16 @@
+html {
+  box-sizing: border-box;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+*:before,
+*:after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 16px;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
