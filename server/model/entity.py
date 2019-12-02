@@ -1,4 +1,5 @@
 import model.field as field
+from model.property import Property
 
 # defined here, the mongo DB is callable through the entity class:
 mongo = None
@@ -9,65 +10,100 @@ def init_model(db):
     mongo = db
 
 
-class Property:
-    """
-        a property for an Entity
-    """
+class EntityData:
+    _properties = []
 
-    def __init__(self, type=None, validator=None, default=None):
-        self.type = type
-        self.validator = validator
-        self.default = default
+    def __init__(self, data=None):
+        self._data = {}
+        self._changed = []
+        if data is not None:
+            for k in data:
+                self[k] = data[k]
+        self.valid = self.validate()
+        self._changed = []  # clear again as not needed
 
-    def check_value(self, value):
-        if not self.validate(value):
-            return self.default
-        return value
+    def __getattr__(self, item):
+        prop = self.get_property(item)
+        if prop is not None:
+            return prop.get_value(self, self._data.get(item))
+        return super().__getattr__(item)
 
-    def validate(self, value):
-        if value is None:
-            pass
-        elif self.type is not None and self.type != type(value):
-            return False
-        if self.validator is None:
-            return
-        return self.validator(value)
+    def __getitem__(self, index):
+        return self.__getattr__(self.get_fields(index))
+
+    def __setattr__(self, item, value):
+        prop = self.get_property(item)
+        if prop is not None:
+            self._data[item] = prop.set_value(self, value)
+            if item not in self._changed:
+                self._changed.append(item)
+        super().__setattr__(item, value)
+
+    def __setitem__(self, index, value):
+        self.__setattr__(self.get_fields(index), value)
+
+    def __str__(self):
+        return '%s(%s)' % (type(self).__name__,
+                           ', '.join(["%s: %s" % (s, str(self[s])) for s in self.get_fields() if self.get_property(s).derived or self._data.get(s) is not None]))
+
+    def get_changed(self, index=None):
+        for f in self.get_fields():
+            if f not in self._changed and issubclass(f.type, EntityData):
+                continue
+            if len(self[f].get_changed()) > 0:
+                self._changed.append(f)
+        if index is None:
+            return self._changed
+        return self._changed[index]
+
+    def get_changed_values(self, all_if_any=False):
+        fields = self.get_changed()
+        if all_if_any and len(fields) > 0:
+            return self.get_data()
+        if fields is None:
+            return None
+        return self.get_data(fields)
+
+    def get_data(self, fields=None):
+        if fields is None:
+            return self._data
+        return {f: self._data[f] for f in fields}
+
+    def get_fields(self, index=None):
+        fields = [p.name for p in type(self)._properties]
+        if type(index) is str:
+            if index in fields:
+                return index
+            return None
+        if type(index) is int:
+            return fields[int]
+        return fields
+
+    def get_property(self, prop_name):
+        props = [p for p in type(self)._properties if p.name == prop_name]
+        if len(props) == 0:
+            return None
+        return props[0]
+
+    def validate(self):
+        return self._data is not None and len(self._data) > 0
+
+    @staticmethod
+    def build_properties(properties):
+        return Property.build(properties)
 
 
-class Entity:
+class Entity(EntityData):
     """Entity within the model"""
-    _collection = ''
+    _collection = None
     _key = field.name
-    _dynamic = True
-    _properties = {}
 
     def __init__(self, data=None, key=None):
-        self._update = []
-        if data is None or len(data) == 0:
-            self._data = {}
-        else:
-            self._data = data
+        if key is not None:
+            data = type(self).load(key)
+        super().__init__(data)
         self.validate()
         self.saved = field._id in self._data.keys()
-
-    def get(self, name, default=None):
-        return self._data.get(name, None, default)
-
-    def set(self, name, value):
-        # _data is always the real value stored/restored but we allow override for self prop.
-        if value != self.get(name):
-            self._data[name] = value
-            self.saved = False
-            self.validate()
-        return self
-
-    def data(self):
-        NotImplemented('data(self)')
-
-    def load(self, key):
-        col = mongo[type(self).lower()]
-        data = col.find_one(key)
-        return self.__init__(data)
 
     def save(self):
         # nothing happening
@@ -83,5 +119,13 @@ class Entity:
         return self.valid
 
     @classmethod
+    def collection(cls):
+        return mongo[cls.__name___.lower() if cls._collection is None else cls._collection]
+
+    @classmethod
     def list(cls, filter=None):
         return []
+
+    @classmethod
+    def load(cls, key):
+        data = cls.collection().find_one(key)
