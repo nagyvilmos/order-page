@@ -5,6 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Test Server",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "console": "integratedTerminal"
+    },
+    {
       "name": "Python: Flask",
       "type": "python",
       "request": "launch",

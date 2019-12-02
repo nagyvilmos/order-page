@@ -1,2 +1,3 @@
 ﻿__pycache__
 server/templates/static/node_modules
+server/.cache/v/cache/lastfailed
