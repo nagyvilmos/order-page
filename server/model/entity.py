@@ -37,10 +37,14 @@ class EntityData:
             self._data[item] = prop.set_value(self, value)
             if item not in self._changed:
                 self._changed.append(item)
-        super().__setattr__(item, value)
+        else:
+            super().__setattr__(item, value)
 
     def __setitem__(self, index, value):
         self.__setattr__(self.get_fields(index), value)
+
+    def __len__(self):
+        return len(self._data)
 
     def __str__(self):
         return '%s(%s)' % (type(self).__name__,

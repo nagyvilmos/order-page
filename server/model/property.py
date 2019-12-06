@@ -18,8 +18,7 @@ class Property:
             for op in options:
                 val = options[op]
                 if val is None:
-                    raise AttributeError(
-                        'Property option %s cannot be null' % op)
+                    continue
                 if op not in ['validate', 'set', 'required', 'default']:
                     raise AttributeError(
                         'Property option %s not recognised' % op)
@@ -28,16 +27,17 @@ class Property:
                     'set': 'setterFn',
                     'required': 'required',
                     'default': 'defaultFn'}[op]
-                if self[field] is not None:
-                    raise AttributeError(
-                        'Property option %s cannot be set twice' % op)
                 if op == 'default':
                     self.derived = callable(val)
                     if not self.derived:
-                        def val(obj): return val
+                        def _derived(obj):
+                            return val
+
+                        self.defaultFn = _derived
+                        continue
                 self[field] = val
         if self.required is None:
-            self.required = False
+            self.required = self.defaultFn is not None
 
     def __getitem__(self, item):
         return super().__getattribute__(item)
@@ -54,7 +54,7 @@ class Property:
         if self.setterFn and value is not None:
             value = self.setterFn(obj, value)
 
-        self.validate(obj, value, raise_exception=True, allow_none=False)
+        self.validate(obj, value, raise_exception=True, allow_none=True)
         return value
 
     def type_name(self):

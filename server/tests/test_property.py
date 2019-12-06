@@ -136,3 +136,20 @@ def test_valid_matches(valid_matches):
     matches = Property.matches(valid_matches['regex'])
     assert matches(
         None, valid_matches['value']) == valid_matches['expected'], valid_matches['message']
+
+
+@pytest.fixture(params=[
+    {'value': 'Test', 'default': None, 'message': 'no default'},
+    {'value': 'Test', 'default': 'Default', 'message': 'default'}
+])
+def default_value(request):
+    return request.param
+
+
+def test_default_value(default_value):
+    value = default_value['value']
+    default = default_value['default']
+    message = default_value['message']
+    prop = Property('test', None, {'default': default})
+    assert prop.get_value(None, None) == default, 'default with %s' % message
+    assert prop.get_value(None, value) == value, 'value with %s' % message
