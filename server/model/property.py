@@ -29,12 +29,6 @@ class Property:
                     'default': 'defaultFn'}[op]
                 if op == 'default':
                     self.derived = callable(val)
-                    if not self.derived:
-                        def _derived(obj):
-                            return val
-
-                        self.defaultFn = _derived
-                        continue
                 self[field] = val
         if self.required is None:
             self.required = self.defaultFn is not None
@@ -48,7 +42,9 @@ class Property:
     def get_value(self, obj, value):
         if self.validate(obj, value):
             return value
-        return self.defaultFn(obj)
+        if self.derived:
+            return self.defaultFn(obj)
+        return self.defaultFn
 
     def set_value(self, obj, value):
         if self.setterFn and value is not None:

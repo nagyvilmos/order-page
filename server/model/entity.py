@@ -11,9 +11,13 @@ def init_model(db):
 
 
 class EntityData:
+    # if marked TRUE, then error if a property change leaves the entity invalid
+
+    _keep_valid = False
     _properties = []
 
     def __init__(self, data=None):
+        self._keep_valid = False  # allow the instance to load
         self._data = {}
         self._changed = []
         if data is not None:
@@ -21,6 +25,7 @@ class EntityData:
                 self[k] = data[k]
         self.valid = self.validate()
         self._changed = []  # clear again as not needed
+        self._keep_valid = type(self)._keep_valid
 
     def __getattr__(self, item):
         prop = self.get_property(item)
@@ -34,7 +39,13 @@ class EntityData:
     def __setattr__(self, item, value):
         prop = self.get_property(item)
         if prop is not None:
+            old = self._data.get(item)
             self._data[item] = prop.set_value(self, value)
+            if self._keep_valid and not self.validate():
+                self._data[item] = old
+                self.validate()
+                raise ValueError('Changing %s will leave %s invalid' %
+                                 (item, self.__class__.__name__))
             if item not in self._changed:
                 self._changed.append(item)
         else:
@@ -90,6 +101,11 @@ class EntityData:
         return props[0]
 
     def validate(self):
+        # !!! don't override - use is_valid!
+        self.valid = self.is_valid()
+        return self.valid
+
+    def is_valid(self):
         return self._data is not None and len(self._data) > 0
 
     @staticmethod
@@ -113,14 +129,10 @@ class Entity(EntityData):
         # nothing happening
         if self.saved:
             return
-        if not self.validate:
+        if not self.validate():
             Exception('Invalid entity')
         data = self.data()
         return self
-
-    def validate(self):
-        self.valid = len(self._data) > 0
-        return self.valid
 
     @classmethod
     def collection(cls):

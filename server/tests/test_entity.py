@@ -123,39 +123,48 @@ def test_entity_setter():
 
 
 @pytest.fixture(params=[
-    {'x': 0, 'y': 0, 'expected': [], 'message': 'Set 0 0'},
-    {'x': 1, 'y': 0, 'expected': ['x'], 'message': 'Set 1 0'},
-    {'x': 0, 'y': 1, 'expected': ['y'], 'message': 'Set 0 1'},
-    {'x': 1, 'y': 1, 'expected': ['x', 'y'], 'message': 'Set 1 1'},
+    {'field': 'x', 'value': 0, 'expected': False, 'message': 'Set x=0'},
+    {'field': 'x', 'value': 1, 'expected': True, 'message': 'Set x=1'},
+    {'field': 'y', 'value': 0, 'expected': False, 'message': 'Set y=0'},
+    {'field': 'y', 'value': 1, 'expected': True, 'message': 'Set y=1'},
 ])
 def entity_validate(request):
-    def validate(obj, value):
-        return obj.x + obj.y >= 2
-
     class EntityValidate(EntityData):
         _properties = Property.build([
-            ['x', int, {'default': 1, 'validate': validate}],
-            ['y', int, {'default': 1, 'validate': validate}]])
+            ['x', int, {'default': 1}],
+            ['y', int, {'default': 1}]])
+
+        def __init__(self, data=None, keep_valid=False):
+            super().__init__(data=data)
+            self._keep_valid = keep_valid
+
+        def is_valid(self):
+            return self.x + self.y >= 2
+
     ret = request.param
     ret['class'] = EntityValidate
     return ret
 
 
-def test_entity_derived(entity_validate):
+def test_entity_validate(entity_validate):
     message = entity_validate['message']
-    x = entity_validate['x']
-    y = entity_validate['y']
+    field = entity_validate['field']
+    value = entity_validate['value']
     expected = entity_validate['expected']
     obj = entity_validate['class']()
 
-    try:
-        obj.x = x
-        assert 'x' in expected, message
-    except Exception as ex:
-        assert 'x' not in expected, message
+    obj[field] = value
+    assert obj.validate() == expected, "%s and allow invalid" % message
 
+
+def test_entity_keep_valid(entity_validate):
+    message = entity_validate['message']
+    field = entity_validate['field']
+    value = entity_validate['value']
+    expected = entity_validate['expected']
+    obj = entity_validate['class'](keep_valid=True)
     try:
-        obj.y = y
-        assert 'y' in expected, message
+        obj[field] = value
+        assert expected, "%s and keep valid" % message
     except:
-        assert 'y' not in expected, message
+        assert not expected, "%s and keep valid" % message
