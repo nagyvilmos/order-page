@@ -136,7 +136,11 @@ class Entity(EntityData):
 
     @classmethod
     def collection(cls):
-        return mongo[cls.__name___.lower() if cls._collection is None else cls._collection]
+        return mongo[cls.collection()]
+
+    @classmethod
+    def collection_name(cls):
+        return cls.__name__.lower() if cls._collection is None else cls._collection
 
     @classmethod
     def list(cls, filter=None):
