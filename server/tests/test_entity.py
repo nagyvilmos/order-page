@@ -176,7 +176,7 @@ def test_entity_keep_valid(entity_validate):
     {'collection': 'override', 'expected': 'override',
         'message': 'override collection'},
 ])
-def entity_collection(request):
+def entity_collection(request, db):
     ret = request.param
 
     class EntityCollection(Entity):
@@ -191,3 +191,37 @@ def test_entity_collection(entity_collection):
     cls_type = entity_collection['class']
     assert cls_type.collection_name() == expected, message
     assert cls_type.collection() is not None, message
+
+
+@pytest.fixture(params=[
+    {'name': None, 'age': None, 'message': 'no values'},
+    {'name': 'test', 'age': None, 'message': 'name'},
+    {'name': None, 'age': 42, 'message': 'age'},
+    {'name': 'this', 'age': 21, 'message': 'both'}
+])
+def entity_populate(request, db):
+    class Populated(Entity):
+        _properties = Property.build([
+            ['name', str, {'default': 'no name'}],
+            ['age', int, {'default': 0}]
+        ])
+    ret = request.param
+    ret['cls'] = Populated
+    return ret
+
+
+def test_entity_populated(entity_populate):
+    name = entity_populate['name']
+    age = entity_populate['age']
+    message = entity_populate['message']
+    cls = entity_populate['cls']
+    obj = cls()
+    obj.name = name
+    obj.age = age
+    assert obj.validate() and not obj.saved, 'Validate %s' % message
+    obj.save()
+    assert obj.validate() and obj.saved, 'Saved %s' % message
+    newObj = cls(obj.name)
+    assert newObj.valid and newObj.saved, 'Loaded %s' % message
+    assert newObj.name == obj.name, "Loaded name for %s" % message
+    assert newObj.age == obj.age, "Loaded age for %s" % message
