@@ -1,5 +1,5 @@
 import pytest
-from model import EntityData, Property
+from model import Entity, EntityData, Property
 
 
 @pytest.fixture(params=[
@@ -168,3 +168,26 @@ def test_entity_keep_valid(entity_validate):
         assert expected, "%s and keep valid" % message
     except:
         assert not expected, "%s and keep valid" % message
+
+
+@pytest.fixture(params=[
+    {'collection': None, 'expected': 'entitycollection',
+        'message': 'default collection'},
+    {'collection': 'override', 'expected': 'override',
+        'message': 'override collection'},
+])
+def entity_collection(request):
+    ret = request.param
+
+    class EntityCollection(Entity):
+        _collection = ret['collection']
+    ret['class'] = EntityCollection
+    return ret
+
+
+def test_entity_collection(entity_collection):
+    message = entity_collection['message']
+    expected = entity_collection['expected']
+    cls_type = entity_collection['class']
+    assert cls_type.collection_name() == expected, message
+    assert cls_type.collection() is not None, message

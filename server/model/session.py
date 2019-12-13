@@ -1,7 +1,8 @@
 """
     session information
 """
-import model.entity as entity
+from model.entity import Entity
+from model.property import Property
 import hashlib
 import secrets
 
@@ -39,7 +40,11 @@ def get_session(req):
     return Session().load({'digest': req['digest']})
 
 
-class Session(entity.Entity):
+class Session(Entity):
+    _properties = Property.build([
+        ['name', str],
+        ['authorised', bool, {'default': False}]
+    ])
 
     def authorised(self, value):
         return self._prop('authorised', default=False)
